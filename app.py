@@ -3,6 +3,9 @@ import pandas as pd
 import json
 import random
 from datetime import datetime, timedelta
+import calendar
+import io
+import base64
 
 # --- Setup Placeholder Data Structures ---
 clients = []
@@ -15,43 +18,49 @@ tasks = {}
 
 # Generate 25 example clients with multiple properties
 def generate_example_clients(num_clients=25):
-    first_names = ["John", "Jane", "Alex", "Emily", "Chris", "Taylor"]
-    last_names = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia"]
+    first_names = ["John", "Jane", "Alex", "Emily", "Chris", "Taylor", "Oliver", "Sophia", "Liam", "Mia"]
+    last_names = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Lee", "Martinez", "Rodriguez", "Clark"]
+    street_names = ["Main", "Maple", "Oak", "Pine", "Elm", "Cedar", "Walnut", "Sunset", "Riverside", "Hillside"]
     
     for i in range(num_clients):
         client_name = f"{random.choice(first_names)} {random.choice(last_names)}"
-        contact = f"client{i}@example.com"
+        contact = f"{client_name.replace(' ', '').lower()}{i}@example.com"
         phone = f"+1-555-{random.randint(100,999)}-{random.randint(1000,9999)}"
         preferred_contact = random.choice(['Email', 'Phone', 'SMS'])
         service_tier = random.choice(['Basic', 'Standard', 'Premium'])
         account_status = random.choice(['Active', 'Pending', 'Inactive'])
+        registration_date = (datetime.today() - timedelta(days=random.randint(30, 365))).strftime('%Y-%m-%d')
+        annual_spend = random.randint(500, 5000)
         
         # Add example client
         clients.append({
-            'name': client_name, 
-            'contact': contact, 
-            'phone': phone, 
-            'preferred_contact': preferred_contact, 
+            'name': client_name,
+            'contact': contact,
+            'phone': phone,
+            'preferred_contact': preferred_contact,
             'service_tier': service_tier,
-            'account_status': account_status
+            'account_status': account_status,
+            'registration_date': registration_date,
+            'annual_spend': annual_spend
         })
 
         # Add multiple properties for each client
-        num_properties = random.randint(1, 5)
+        num_properties = random.randint(1, 3)
         for j in range(num_properties):
-            prop_address = f"{random.randint(1, 999)} Elm St, Unit {j+1}"
+            prop_address = f"{random.randint(1, 999)} {random.choice(street_names)} St, Unit {j+1}"
             size = random.randint(1000, 5000)  # Square feet
             prop_type = random.choice(['Residential', 'Commercial'])
             cleaning_freq = random.choice(['Weekly', 'Bi-weekly', 'Monthly'])
             cleaning_notes = f"Specific instructions for Unit {j+1}"
-            
+            last_cleaned = (datetime.today() - timedelta(days=random.randint(1, 30))).strftime('%Y-%m-%d')
+
             properties.append({
-                'client': client_name, 
-                'address': prop_address, 
-                'size': size, 
-                'type': prop_type, 
-                'cleaning_freq': cleaning_freq, 
-                'last_cleaned': (datetime.today() - timedelta(days=random.randint(1, 30))).strftime('%Y-%m-%d'),
+                'client': client_name,
+                'address': prop_address,
+                'size': size,
+                'type': prop_type,
+                'cleaning_freq': cleaning_freq,
+                'last_cleaned': last_cleaned,
                 'cleaning_notes': cleaning_notes,
                 'photos': None  # Placeholder for property photos
             })
@@ -85,142 +94,69 @@ def save_data():
     with open('crm_data.json', 'w') as f:
         json.dump(data, f)
 
-# Function to add a new client manually
-def add_client():
-    with st.form("Add a new client"):
-        name = st.text_input("Client Name")
-        contact = st.text_input("Client Contact Info (Email)")
-        phone = st.text_input("Client Phone")
-        preferred_contact = st.selectbox("Preferred Contact Method", ['Email', 'Phone', 'SMS'])
-        service_tier = st.selectbox("Service Tier", ['Basic', 'Standard', 'Premium'])
-        account_status = st.selectbox("Account Status", ['Active', 'Pending', 'Inactive'])
-        if st.form_submit_button("Add Client"):
-            clients.append({
-                'name': name,
-                'contact': contact,
-                'phone': phone,
-                'preferred_contact': preferred_contact,
-                'service_tier': service_tier,
-                'account_status': account_status
-            })
-            save_data()
-
-# Function to add a new property manually
-def add_property():
-    with st.form("Add a new property"):
-        client_name = st.selectbox("Client", [client['name'] for client in clients])
-        property_address = st.text_input("Property Address")
-        size = st.number_input("Property Size (sq. ft.)", min_value=500, step=50)
-        prop_type = st.selectbox("Property Type", ['Residential', 'Commercial'])
-        cleaning_freq = st.selectbox("Cleaning Frequency", ['Weekly', 'Bi-weekly', 'Monthly'])
-        cleaning_notes = st.text_area("Cleaning Notes (specific instructions)")
-        property_photos = st.file_uploader("Upload Property Photos", accept_multiple_files=True)
-        if st.form_submit_button("Add Property"):
-            properties.append({
-                'client': client_name,
-                'address': property_address,
-                'size': size,
-                'type': prop_type,
-                'cleaning_freq': cleaning_freq,
-                'last_cleaned': (datetime.today() - timedelta(days=random.randint(1, 30))).strftime('%Y-%m-%d'),
-                'cleaning_notes': cleaning_notes,
-                'photos': property_photos  # Store photo file references
-            })
-            save_data()
-
-# Function to add and manage cleaning tasks
-def manage_tasks():
-    st.subheader("Task Scheduler")
-    with st.form("Assign a Cleaning Task"):
-        property_address = st.selectbox("Property", [prop['address'] for prop in properties])
-        assigned_staff = st.selectbox("Assign to Staff", [member['name'] for member in staff])
-        task_date = st.date_input("Task Date")
-        if st.form_submit_button("Assign Task"):
-            tasks[property_address] = {
-                'staff': assigned_staff,
-                'date': task_date,
-                'status': 'Assigned'
-            }
-            save_data()
-    # Display tasks
-    st.write("Assigned Tasks:")
-    for property_address, task in tasks.items():
-        st.write(f"Property: {property_address}, Assigned to: {task['staff']}, Date: {task['date']}, Status: {task['status']}")
-
-# Manage staff
-def manage_staff():
-    st.subheader("Manage Cleaning Staff")
-    with st.form("Add Staff Member"):
-        name = st.text_input("Staff Name")
-        contact = st.text_input("Staff Contact Info (Email/Phone)")
-        if st.form_submit_button("Add Staff"):
-            staff[name] = {
-                'contact': contact,
-            }
-            save_data()
-
-    st.write("Staff Members:")
-    for name, info in staff.items():
-        st.write(f"{name} - Contact: {info['contact']}")
-
-# Manage invoices and payments
-def manage_invoices():
-    st.subheader("Manage Invoices")
-    with st.form("Generate Invoice"):
-        client_name = st.selectbox("Select Client", [client['name'] for client in clients])
-        service_date = st.date_input("Service Date")
-        amount_due = st.number_input("Amount Due", min_value=0.0, step=0.01)
-        due_date = st.date_input("Due Date")
-        if st.form_submit_button("Generate Invoice"):
-            invoices[client_name] = {
-                'service_date': service_date.strftime('%Y-%m-%d'),
-                'amount_due': amount_due,
-                'due_date': due_date.strftime('%Y-%m-%d'),
-                'status': 'Pending'
-            }
-            save_data()
-    
-    # Display invoices
-    st.write("Invoices:")
-    for client, invoice in invoices.items():
-        st.write(f"Client: {client}, Amount Due: ${invoice['amount_due']}, Due Date: {invoice['due_date']}, Status: {invoice['status']}")
-
-# UI Rendering and Menu Options
-def render_ui():
-    st.set_page_config(page_title="Cleaning Company CRM", page_icon="favicon.ico")  # Favicon path
-    st.sidebar.image("logo.png", use_column_width=True)  # Logo path
-    st.title("Cleaning Company CRM")
-
-    st.sidebar.header("Navigation")
-    options = st.sidebar.selectbox("Select a page", ["View Clients", "Add Client", "View Properties", "Add Property", "Manage Tasks", "Manage Staff", "Invoices and Payments"])
-    
-    if options == "View Clients":
-        st.subheader("Client List")
+# Function to display data in a more visible format
+def display_data():
+    st.subheader("Client Data")
+    if clients:
         df_clients = pd.DataFrame(clients)
         st.dataframe(df_clients)
-
-    elif options == "Add Client":
-        add_client()
-
-    elif options == "View Properties":
-        st.subheader("Property List")
+    else:
+        st.write("No clients available.")
+    
+    st.subheader("Property Data")
+    if properties:
         df_properties = pd.DataFrame(properties)
         st.dataframe(df_properties)
+    else:
+        st.write("No properties available.")
 
-    elif options == "Add Property":
-        add_property()
+    st.subheader("Invoice Data")
+    if invoices:
+        df_invoices = pd.DataFrame(invoices).T
+        st.dataframe(df_invoices)
+    else:
+        st.write("No invoices available.")
 
-    elif options == "Manage Tasks":
-        manage_tasks()
+    st.subheader("Staff Data")
+    if staff:
+        df_staff = pd.DataFrame(staff).T
+        st.dataframe(df_staff)
+    else:
+        st.write("No staff data available.")
 
-    elif options == "Manage Staff":
-        manage_staff()
+# --- Main App Execution ---
+load_data()
 
-    elif options == "Invoices and Payments":
-        manage_invoices()
+st.title("Cleaning Company CRM System")
 
-if __name__ == "__main__":
-    load_data()
-    generate_example_clients()
-    render_ui()
-    save_data()
+# Sidebar for navigation
+st.sidebar.title("Navigation")
+option = st.sidebar.radio("Go to", ['Dashboard', 'Clients', 'Properties', 'Tasks', 'Invoices', 'Staff', 'Add Client', 'Add Property'])
+
+# Page content based on selection
+if option == 'Dashboard':
+    st.header("Dashboard")
+    st.write("Summary of the company's performance:")
+    total_clients = len(clients)
+    total_properties = len(properties)
+    total_invoices = len(invoices)
+    st.write(f"Total Clients: {total_clients}")
+    st.write(f"Total Properties: {total_properties}")
+    st.write(f"Total Invoices: {total_invoices}")
+    display_data()
+elif option == 'Clients':
+    st.header("Client List")
+    display_data()
+elif option == 'Properties':
+    st.header("Properties List")
+    display_data()
+elif option == 'Tasks':
+    manage_tasks()
+elif option == 'Invoices':
+    manage_invoices()
+elif option == 'Staff':
+    manage_staff()
+elif option == 'Add Client':
+    add_client()
+elif option == 'Add Property':
+    add_property()
